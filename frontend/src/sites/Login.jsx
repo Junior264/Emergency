@@ -1,4 +1,3 @@
-import api from "../utils/axiosConfig";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
@@ -26,9 +25,15 @@ const Login = () => {
         setError('');
 
         try {
-            const res = await axiosInstance.post('http://localhost:8765/login', formData);
+            const response = await fetch("http://localhost:8765/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                  },
+                body: JSON.stringify(formData)
+            });
 
-            if (res.status === 200) {
+            if (response.status === 200) {
                 navigate('/')
             } else {
                 const errorText = await res.text();

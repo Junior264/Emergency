@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import { lock, user } from "../assets/icons";
-import api from "../utils/axiosConfig";
 
 const Registration = () => {
     const [formData, setFormData] = useState({
@@ -32,11 +31,15 @@ const Registration = () => {
         setError('');
 
         try {
-            const res = await api.post('http://localhost:8765/register', {
-                formData
+            const response = await fetch("http://localhost:8765/register", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                  },
+                body: JSON.stringify(formData)
             });
 
-            if (res.status === 200) {
+            if (response.status === 200) {
                 navigate('/login')
             } else {
                 const errorText = await res.text();
