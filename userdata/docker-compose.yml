@@ -1,0 +1,15 @@
+version: '4'
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: userdata
+    environment:
+      POSTGRES_SQL_USERNAME: postgres
+      POSTGRES_PASSWORD: demo1234
+    volumes:
+       - ./postgres:/var/lib/postgres
+       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - 5431:5432
+
