@@ -5,6 +5,7 @@ import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.client.RestTemplate;
 
 import dev.ewald.api_gateway.filter.AuthFilter;
 import dev.ewald.api_gateway.filter.RequestFilter;
@@ -48,5 +49,10 @@ public class Routes {
             //     .uri("http://localhost:8088"))
             // .build();
            
+    }
+
+    @Bean
+    public RestTemplate getRestTemplate() {
+        return new RestTemplate();
     }
 }
