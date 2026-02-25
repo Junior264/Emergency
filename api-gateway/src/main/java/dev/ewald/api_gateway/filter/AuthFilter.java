@@ -58,7 +58,7 @@ public class AuthFilter implements GatewayFilter {
     }
 
     private ServerWebExchange getMutatedExchange(ServerWebExchange exchange, String token) {
-        Claims claims = jwtUtil.getALlClaims(token);
+        Claims claims = jwtUtil.getAllClaims(token);
         String userId = claims.getSubject(); 
 
         ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
