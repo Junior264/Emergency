@@ -1,8 +1,11 @@
-# React + Vite
+# emergency-notification-frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is a frontend for the emergency notifications, build with React Vite to demonstrate Microservice Architecture Service Backend 
 
-Currently, two official plugins are available:
+Install [node](https://nodejs.org/en/download/), this project uses Version v20.11.1
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Install all packages with `npm install`
+
+# Start vite application in development mode
+npm run build
+
