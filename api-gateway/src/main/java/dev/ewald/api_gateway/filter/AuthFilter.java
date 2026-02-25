@@ -1,7 +1,5 @@
 package dev.ewald.api_gateway.filter;
 
-
-
 import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,10 +11,7 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
-
-import dev.ewald.api_gateway.utils.AuthUtil;
 import dev.ewald.api_gateway.utils.JWTUtil;
-import dev.ewald.api_gateway.utils.RouteValidator;
 import reactor.core.publisher.Mono;
 
 @Component
@@ -24,13 +19,7 @@ import reactor.core.publisher.Mono;
 public class AuthFilter implements GatewayFilter {
 
     @Autowired
-    RouteValidator routeValidator;
-
-    @Autowired
     private JWTUtil jwtUtil;
-
-    @Autowired
-    private AuthUtil authUtil;
 
     @Value("${authentication.enabled}")
     private boolean authEnabled;
@@ -41,32 +30,25 @@ public class AuthFilter implements GatewayFilter {
             System.out.println("Authentication is disabled. To enable it, make \"authentication.enabled\" property as true");
             return chain.filter(exchange);
         }
-        String token ="";
+
         ServerHttpRequest request = exchange.getRequest();
 
-        if(routeValidator.isSecured.test(request)) {
-            System.out.println("validating authentication token");
-            if(this.isCredsMissing(request)) {
-                System.out.println("in error");
-                return this.onError(exchange,"Credentials missing",HttpStatus.UNAUTHORIZED);
-            }
-            if (request.getHeaders().containsKey("userName") && request.getHeaders().containsKey("role")) {
-                token = authUtil.getToken(request.getHeaders().get("userName").toString(), request.getHeaders().get("role").toString());
-            }
-            else {
-                token = request.getHeaders().get("Authorization").toString().split(" ")[1];
-            }
-
-            if(jwtUtil.isInvalid(token)) {
-                return this.onError(exchange,"Auth header invalid",HttpStatus.UNAUTHORIZED);
-            }
-            else {
-                System.out.println("Authentication is successful");
-            }
-
-            this.populateRequestWithHeaders(exchange,token);
+        if (!request.getHeaders().containsKey("Authorization")) {
+            return this.onError(exchange, "No Authorization Header", HttpStatus.UNAUTHORIZED);
         }
-        return chain.filter(exchange);
+
+        String authHeader = request.getHeaders().getFirst("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return this.onError(exchange, "Invalid Authorization Header", HttpStatus.UNAUTHORIZED);
+        }
+
+        String token = authHeader.substring(7);
+
+        if (jwtUtil.isInvalid(token)) {
+            return this.onError(exchange, "Invalid or Expired Token", HttpStatus.UNAUTHORIZED);
+        }
+
+        return chain.filter(this.getMutatedExchange(exchange, token));
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus httpStatus) {
@@ -75,21 +57,15 @@ public class AuthFilter implements GatewayFilter {
         return response.setComplete();
     }
 
-    private String getAuthHeader(ServerHttpRequest request) {
-        return  request.getHeaders().getOrEmpty("Authorization").get(0);
-    }
-
-
-    private boolean isCredsMissing(ServerHttpRequest request) {
-        return !(request.getHeaders().containsKey("userName") && request.getHeaders().containsKey("role")) && !request.getHeaders().containsKey("Authorization");
-    }
-
-    private void populateRequestWithHeaders(ServerWebExchange exchange, String token) {
+    private ServerWebExchange getMutatedExchange(ServerWebExchange exchange, String token) {
         Claims claims = jwtUtil.getALlClaims(token);
-        exchange.getRequest()
-                .mutate()
-                .header("id",String.valueOf(claims.get("id")))
-                .header("role", String.valueOf(claims.get("role")))
-                .build();
+        String userId = claims.getSubject(); 
+
+        ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
+            .header("id", userId)
+            .header("role", String.valueOf(claims.get("role")))
+            .build();
+
+        return exchange.mutate().request(mutatedRequest).build();
     }
 }
