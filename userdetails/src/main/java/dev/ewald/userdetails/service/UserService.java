@@ -7,6 +7,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import dev.ewald.userdetails.dto.AuthUserResponse;
+import dev.ewald.userdetails.dto.UserRequest;
+import dev.ewald.userdetails.dto.UserResponse;
 import dev.ewald.userdetails.model.User;
 import dev.ewald.userdetails.repository.UserRepository;
 
@@ -24,20 +27,51 @@ public class UserService {
 
     private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(12);
 
-    public User register(User user) {
-        user.setPassword(encoder.encode(user.getPassword()));
-        userRepository.save(user);
+    public UserResponse register(UserRequest user) {
+        User newUser = new User();
 
-        return user;
+        newUser.setUsername(user.username());
+        newUser.setActivated(false);
+        newUser.setPassword(encoder.encode(user.password()));
+        newUser.setRole("USER");
+        
+        userRepository.save(newUser);
+
+        return new UserResponse(newUser.getId(), newUser.getUsername(), newUser.isActivated());
     }
 
-    public String verify(User user) {
-        Authentication authentication = authManager.authenticate(new UsernamePasswordAuthenticationToken(user.getUsername(), user.getPassword()));
+    public AuthUserResponse verify(UserRequest user) {
+        Authentication authentication = authManager.authenticate(new UsernamePasswordAuthenticationToken(user.username(), user.password()));
         
         if (authentication.isAuthenticated()) {
-            return jwtService.generateToken(user.getUsername());
+            String generatedAccessToken = jwtService.generateTokenAccess(user.username());
+            String generatedRefreshToken = jwtService.generateTokenRefresh(user.username());
+            User updateUser = userRepository.findByUsername(user.username());
+
+            setRefreshTokenToUser(updateUser, generatedRefreshToken);
+
+            return new AuthUserResponse(updateUser.getId(), updateUser.getUsername(), updateUser.isActivated(), generatedAccessToken, generatedRefreshToken);
         }
 
-        return "fail";
+        return new AuthUserResponse(null, null, null, null, null);
+    }
+
+    public String refreshToken(String token) {
+        User refreshUser = userRepository.findByRefreshToken(token);
+
+        return jwtService.generateTokenAccess(refreshUser.getUsername());
+
+    }
+
+    public String delete(String username) {
+        User deleteUser = userRepository.findByUsername(username);
+        userRepository.delete(deleteUser);
+
+        return "User deleted successfully.";
+    }
+
+    private void setRefreshTokenToUser(User user, String refreshToken) {
+        user.setRefreshToken(refreshToken);
+        userRepository.save(user);
     }
 }
