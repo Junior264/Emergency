@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cancel } from '../assets/icons';
 import { defaultUserImage } from '../assets/images';
 import Button from './Button';
@@ -7,6 +7,7 @@ import NotificationSettings from './NotificationSettings';
 import DeleteConfirmation from './DeleteConfirmation';
 import { UseAuth } from "../components/AuthContext";
 import { useNavigate } from "react-router-dom";
+import api from '../utils/index'; 
 
 const Sidebar = ({ toggle }) => {
     const [userDailsVisible, setUserDailsVisible] = useState(false);
@@ -14,11 +15,42 @@ const Sidebar = ({ toggle }) => {
     const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
     const { logout } = UseAuth();
     const navigate = useNavigate();
+    const [userData, setUserData] = useState({ firstName: '', lastName: '' });
+    const [profileImage, setProfileImage] = useState(defaultUserImage);
 
     const handleLogout = () => {
         logout();
         navigate("/login");
     };
+
+    const handleUpdateSuccess = (newData) => {
+        if (newData.image) {
+            const previewUrl = URL.createObjectURL(newData.image);
+            setProfileImage(previewUrl);
+        }
+        setUserData({
+            firstName: newData.firstName || userData.firstName,
+            lastName: newData.lastName || userData.lastName
+        });
+    };
+
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const response = await api.get('/details/me');
+                const { firstName, lastName, image } = response.data;
+                
+                setUserData({ firstName, lastName });
+                
+                if (image) {
+                    setProfileImage(`data:image/jpeg;base64,${image}`);
+                }
+            } catch (error) {
+                console.error("Fehler beim Laden der Profildaten:", error);
+            }
+        };
+        fetchUserData();
+    }, []);
 
     return (
         <>
@@ -52,13 +84,13 @@ const Sidebar = ({ toggle }) => {
                         <div className='absolute inset-0 bg-blue-500 blur-2xl opacity-10 rounded-full'></div>
                         <img 
                             className="rounded-full relative border-4 border-white shadow-lg object-cover" 
-                            src={defaultUserImage} 
+                            src={profileImage}
                             alt='profile' 
                             height={160} 
                             width={160} 
                         />
                     </div>
-                    <h3 className='mt-6 text-2xl font-bold text-gray-800'>My Account</h3>
+                    <h3 className='mt-6 text-2xl font-bold text-gray-800'>Welcome, {userData.firstName} {userData.lastName}!</h3>
                     <p className='text-gray-400 text-sm font-medium tracking-wide uppercase mt-1'>Control Panel</p>
                 </div>
 
@@ -90,7 +122,11 @@ const Sidebar = ({ toggle }) => {
             </div>
 
             {userDailsVisible && (
-                <UserDetails toggle={userDailsVisible} action={() => setUserDailsVisible(false)} />
+                <UserDetails 
+                    toggle={userDailsVisible} 
+                    action={() => setUserDailsVisible(false)} 
+                    onUpdateSuccess={handleUpdateSuccess}
+                />
             )}
             {notificationSettingsVisible && (
                 <NotificationSettings toggle={notificationSettingsVisible} action={() => setNotificationSettingsVisible(false)} />

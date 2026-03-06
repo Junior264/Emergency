@@ -4,6 +4,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,7 +21,14 @@ public class User {
     private Long id;
     private String username;
     private String password;
+    private String firstName;
+    private String lastName;
+    private Integer age;
+    private String email;
     private String role;
     private boolean isActivated;
     private String refreshToken;
+
+    @Lob
+    private byte[] personalImage;
 }

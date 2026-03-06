@@ -1,11 +1,54 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { lock, user as userIcon } from '../assets/icons';
 import Input from './Input';
 import Button from './Button';
+import PersonalImage from './Image';
+import api from '../utils/index';
 
-const UserDetails = ({ toggle, action }) => {
-    const handleChange = (e) => console.log(e.target.value);
-    const handleSubmit = () => console.log("Submit clicked");
+
+const UserDetails = ({ toggle, action, onUpdateSuccess }) => {
+    const [formData, setFormData] = useState({
+        firstName: '',
+        lastName: '',
+        age: '',
+        image: null
+    });
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const handleImageProcessed = (name, file) => {
+        setFormData(prev => ({ ...prev, [name]: file }));
+        console.log("Bild bereit für Backend:", file);
+    };
+
+    const handleSubmit = async () => {
+        const data = new FormData();
+
+        data.append('firstName', formData.firstName);
+        data.append('lastName', formData.lastName);
+        data.append('age', formData.age);
+
+        if (formData.image) data.append('image', formData.image);
+
+        try {
+            const response = await api.put('/details/update', data);
+            if (response.status === 200) {
+                console.log("Update erfolgreich!");
+                if (onUpdateSuccess) {
+                    onUpdateSuccess(formData); 
+                }
+                action();
+            }
+        } catch (error) {
+            console.error("Update fehlgeschlagen:", error.response?.data);
+        }
+    };
 
     return (
         <div className={`fixed inset-0 w-screen h-screen bg-black/60 backdrop-blur-sm z-[100] flex justify-center items-center ${toggle ? '' : 'hidden'}`}>
@@ -39,20 +82,32 @@ const UserDetails = ({ toggle, action }) => {
                 <div className='p-10 flex flex-col gap-8'>
                     <div className='flex flex-col gap-6'>
                         <Input 
-                            icon={userIcon} 
-                            name="username" 
-                            label="USERNAME" 
-                            placeholder="Type your username" 
+                            name="firstName" 
+                            label="FIRSTNAME" 
+                            placeholder="Max" 
                             type="text" 
                             onChange={handleChange}
                         />
                         <Input 
-                            icon={lock} 
-                            name="password" 
-                            label="PASSWORD" 
-                            placeholder="Type your password" 
-                            type="password" 
+                            name="lastName" 
+                            label="LASTNAME" 
+                            placeholder="Mustermann" 
+                            type="text" 
                             onChange={handleChange}
+                        />
+                        <Input 
+                            name="age" 
+                            label="AGE" 
+                            placeholder="10"
+                            type="number" 
+                            onChange={handleChange}
+                        />
+                        <PersonalImage 
+                            name="image"
+                            label="PROFILE IMAGE"
+                            type="file" 
+                            accept="image/*" 
+                            onImageProcessed={handleImageProcessed}
                         />
                     </div>
 

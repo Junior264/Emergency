@@ -31,6 +31,10 @@ public class Routes {
                 .path("/notifications/emergency")
                 .filters(f -> f.filter(authFilter))
                 .uri("lb://USERDATA"))
+            .route("userdetails_service", r -> r
+                .path("/details/update")
+                .filters(f -> f.filter(authFilter))
+                .uri("lb://USERDETAILS"))
             .build();    
     }
 }
