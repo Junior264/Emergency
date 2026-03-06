@@ -17,7 +17,7 @@ public class MailService {
     JavaMailSender mailSender;
 
     public void sendMail(RequestMail mail) {
-        String subject = "Emergency Notification from: " + mail.username();
+        String subject = "Emergency notification from: " + mail.username();
         SimpleMailMessage message = new SimpleMailMessage();
 
         message.setFrom(username);

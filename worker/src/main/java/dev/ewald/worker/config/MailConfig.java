@@ -29,6 +29,11 @@ public class MailConfig {
 
     @Bean
     public JavaMailSender getJavaMailSender() {
+        System.out.println("host - " + host);
+        System.out.println("username - " + username);
+        System.out.println("password - " + password);
+        System.out.println("port - " + port);
+        System.out.println("debug - " + debug);
         JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
         mailSender.setHost(host);
         mailSender.setPort(port);
@@ -36,6 +41,7 @@ public class MailConfig {
         mailSender.setPassword(password);
         
         Properties props = mailSender.getJavaMailProperties();
+        props.put("mail.smtp.from", username); 
         props.put("mail.transport.protocol", "smtp");
         props.put("mail.debug", debug);
         props.put("mail.smtp.auth", "true");

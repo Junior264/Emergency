@@ -1,0 +1,193 @@
+services:
+  service-registry:
+    build: ./service-registry
+    ports:
+      - "8761:8761"
+    environment:
+      SERVER_PORT: 8761
+      EUREKA_CLIENT_REGISTER_WITH_EUREKA: "false"
+      EUREKA_CLIENT_FETCH_REGISTRY: "false"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - emergency-net
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093' 
+      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:29092'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk' 
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks:
+      - emergency-net
+
+  postgres-userdata:
+    image: postgres:18.1
+    environment:
+      POSTGRES_DB: userdata
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: demo1234
+    ports:
+      - "5432:5432"
+    networks:
+      - emergency-net
+
+  userdata:
+    build: ./userdata
+    depends_on:
+      service-registry:
+        condition: service_healthy
+      postgres-userdata:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      - SERVER_PORT=8081
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-userdata:5432/userdata
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=demo1234
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_DATABASE=POSTGRESQL
+      - SPRING_JPA_SHOW_SQL=true
+
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SPRING_KAFKA_PRODUCER_KEY_SERIALIZER=org.apache.kafka.common.serialization.StringSerializer
+      - SPRING_KAFKA_PRODUCER_VALUE_SERIALIZER=org.springframework.kafka.support.serializer.JsonSerializer
+      - SPRING_KAFKA_CONSUMER_KEY_DESERIALIZER=org.apache.kafka.common.serialization.StringDeserializer
+      - SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER=org.springframework.kafka.support.serializer.JsonDeserializer
+      - SPRING_KAFKA_CONSUMER_PROPERTIES_SPRING_JSON_TRUSTED_PACKAGES=*
+
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
+      - "eureka.client.service-url.defaultZone=http://service-registry:8761/eureka/"
+    networks:
+      - emergency-net
+
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8765:8765"
+    depends_on:
+      service-registry:
+        condition: service_healthy
+    environment:
+      - SERVER_PORT=8765
+      - AUTHENTICATION_ENABLED=true
+      - "JWT_SECRET=${JWT_SECRET}"
+      - "jwt.secret=${JWT_SECRET}"
+
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
+      - "eureka.client.service-url.defaultZone=http://service-registry:8761/eureka/"
+
+    networks:
+      - emergency-net
+
+  postgres-userdetails:
+    image: postgres:18.1
+    environment:
+      POSTGRES_DB: users
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: demo1234
+    ports:
+      - "5431:5432"
+    networks:
+      - emergency-net
+
+  userdetails:
+    build: ./userdetails
+    depends_on:
+      service-registry:
+        condition: service_healthy
+      postgres-userdetails:
+        condition: service_started
+    ports:
+      - "8082:8082"
+    environment:
+      - SERVER_PORT=8082
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-userdetails:5432/users
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=demo1234
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_DATABASE=POSTGRESQL
+      - SPRING_JPA_SHOW_SQL=true
+
+      - SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE=10MB
+      - SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE=10MB
+
+      - "JWT_LIFETIME=${JWT_LIFETIME}"
+      - "JWT_REFRESHLIFETIME=${JWT_REFRESH_LIFETIME}"
+      - "JWT_SECRET=${JWT_SECRET}"
+      - "jwt.secret=${JWT_SECRET}"
+
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
+      - "eureka.client.service-url.defaultZone=http://service-registry:8761/eureka/"
+    networks:
+      - emergency-net
+
+  worker:
+    build: ./worker
+    depends_on:
+      - service-registry
+      - kafka
+    ports:
+      - "8083:8083"
+    environment:
+      - SERVER_PORT=8083
+      - "SPRING_MAIL_HOST=${SPRING_MAIL_HOST}"
+      - "spring.mail.host=${SPRING_MAIL_HOST}"
+      - "SPRING_MAIL_USERNAME=${SPRING_MAIL_USERNAME}"
+      - "spring.mail.username=${SPRING_MAIL_USERNAME}"
+      - "SPRING_MAIL_PASSWORD=${SPRING_MAIL_PASSWORD}"
+      - "spring.mail.password=${SPRING_MAIL_PASSWORD}"
+      - "SPRING_MAIL_PORT=${SPRING_MAIL_PORT}"
+      - "spring.mail.port=${SPRING_MAIL_PORT}"
+      - "SPRING_MAIL_PROTOCOL=${SPRING_MAIL_PROTOCOL}"
+      - "spring.mail.protocol=${SPRING_MAIL_PROTOCOL}"
+
+      - MAIL.DEBUG=true
+
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SPRING_KAFKA_CONSUMER_GROUP_ID=worker-group
+      - SPRING_KAFKA_CONSUMER_KEY_DESERIALIZER=org.apache.kafka.common.serialization.StringDeserializer
+      - SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER=org.springframework.kafka.support.serializer.JsonDeserializer
+      - SPRING_KAFKA_CONSUMER_PROPERTIES_SPRING_JSON_TRUSTED_PACKAGES="*"
+      - SPRING_KAFKA_CONSUMER_PROPERTIES_SPRING_JSON_TYPE_MAPPING=dev.ewald.userdata.model.NotificationWorkerRequest:dev.ewald.worker.dto.WorkRequest
+    networks:
+      - emergency-net
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "5173:5173"
+    networks:
+      - emergency-net
+
+networks:
+  emergency-net:
+    driver: bridge
