@@ -11,7 +11,7 @@ Die Verarbeitung erfolgt asynchron über Messaging, wodurch E-Mail- und SMS-Bena
 
 ---
 
-## 🏗 System-Architektur
+## System-Architektur
 
 Um eine hohe Ausfallsicherheit zu gewährleisten, wurde die Architektur als Event-driven System umgesetzt.
 
